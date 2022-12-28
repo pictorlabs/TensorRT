@@ -37,7 +37,7 @@ RUN wget -q https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSIO
  && chmod a+x /usr/bin/bazel
 
 # Remove cuda symlink to avoid bazel circle symlink errors
-RUN rm /usr/local/cuda-11.7/cuda-11.7
+# RUN rm /usr/local/cuda-11.7/cuda-11
 
 # Build Torch-TensorRT in an auxillary container
 FROM base as torch-tensorrt-builder-base
@@ -72,9 +72,16 @@ RUN pip3 install *.whl && rm -fr /workspace/torch_tensorrt/py/dist/* *.whl
 # Install native tensorrt python package required by torch_tensorrt whl file
 RUN pip install nvidia-pyindex
 RUN pip install nvidia-tensorrt
-
+RUN pip install torchserve torch-model-archiver nvgpu pyyaml
+RUN apt install -y default-jre
+RUN mkdir /opt/torch_tensorrt/model-store
 WORKDIR /opt/torch_tensorrt
+EXPOSE 8080 8081 8082 7070 7071
+COPY dockerd-entrypoint.sh /usr/local/bin/dockerd-entrypoint.sh
+COPY config.properties /opt/torch_tensorrt/config.properties
+
+RUN chmod +x /usr/local/bin/dockerd-entrypoint.sh
 ENV LD_LIBRARY_PATH /usr/local/lib/python3.8/dist-packages/torch/lib:/usr/local/lib/python3.8/dist-packages/torch_tensorrt/lib:/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH}
 ENV PATH /usr/local/lib/python3.8/dist-packages/torch_tensorrt/bin:${PATH}
-
-CMD /bin/bash
+ENTRYPOINT ["/usr/local/bin/dockerd-entrypoint.sh"]
+CMD ["serve"]
